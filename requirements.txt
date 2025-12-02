@@ -1,0 +1,18 @@
+# 核心依赖
+fastapi
+uvicorn[standard]
+vllm
+torch>=2.1.0
+# torch>=2.0.0,<2.3.0
+transformers
+sentence-transformers
+pydantic
+pydantic-settings
+
+# 安全/运维依赖
+python-jose[cryptography]  # JWT认证（可选）
+python-multipart
+structlog # 结构化日志
+prometheus-fastapi-instrumentator  # Prometheus监控
+limits
+python-dotenv  # 环境变量管理

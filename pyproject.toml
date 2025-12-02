@@ -1,0 +1,25 @@
+[project]
+name = "modelserve"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.123.0",
+    "limits>=5.6.0",
+    "prometheus-fastapi-instrumentator>=7.1.0",
+    "pydantic>=2.12.5",
+    "python-dotenv>=1.2.1",
+    "python-jose[cryptography]>=3.5.0",
+    "python-multipart>=0.0.20",
+    "sentence-transformers>=5.1.2",
+    "structlog>=25.5.0",
+    "torch>=2.1.0",
+    "transformers>=4.57.3",
+    "uvicorn[standard]>=0.38.0",
+    "vllm>=0.11.2",
+]
+
+[[tool.uv.index]]
+name = "tsinghua"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
