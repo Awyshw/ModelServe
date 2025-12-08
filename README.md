@@ -73,3 +73,9 @@ curl http://localhost:9090/v1/embeddings \
     "encoding_format": "float"
   }'
 ```
+
+
+# PaperModels
+PaperModels 是基于对大模型论文中提到的一些技术核心点，进行简单的实现，不涉及到真实场景中的复杂实现，仅作为技术分享和交流使用。
+
+## [DeepSeek V3.2](paper_models/deepseek_v3.2/deepseek_v3.2.md)
