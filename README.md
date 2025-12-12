@@ -31,6 +31,8 @@ uv add -r requirements.txt  # 向项目添加依赖项
 ├── models
 │   ├── bge-m3
 │   └── bce-embedding-base_v1
+|   └── bce-reranker-base_v1
+|   └── bge-reranker-v2-m3
 ```
 
 * 配置文件  
@@ -60,10 +62,33 @@ response = openai.Embedding.create(
 embeddings = [item["embedding"] for item in response["data"]]
 print(f"嵌入维度: {len(embeddings[0])}")
 print(f"第一个向量: {embeddings[0][:5]}...")
+
+# reranker 模型 调用 Rerank API
+response = openai.Rerank.create(
+    query="介绍人工智能的应用",
+    documents=[
+        "机器学习是人工智能的一个重要分支，研究计算机如何学习",
+        "人工智能在医疗领域的应用包括疾病诊断、药物研发等",
+        "Python 是一种流行的编程语言，常用于数据科学",
+        "自动驾驶汽车是人工智能在交通领域的典型应用",
+        "人工智能可以帮助企业优化供应链管理，提高效率"
+    ],
+    model="bge-rerakner-v2-m3",
+    return_scores=True
+)
+
+# 处理结果
+print(f"模型: {response.model}")
+print("排序结果:")
+for idx, item in enumerate(response.data):
+    print(f"排名 {idx+1}: 分数={item.score:.4f}, 文本: {item.document}")
+    print(f"  原始索引: {item.original_index}")
+    print()
 ```
 
 2. 使用 Curl 调用
 ```bash
+# embedding
 curl http://localhost:9090/v1/embeddings \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk-local-embedding-api-key" \
@@ -71,6 +96,40 @@ curl http://localhost:9090/v1/embeddings \
     "input": ["Hello world", "本地向量模型"],
     "model": "bge-m3",
     "encoding_format": "float"
+  }'
+```
+```bash
+# reranker
+curl http://localhost:9090/v1/rerank \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-local-embedding-api-key" \
+  -d '{
+    "query": "介绍人工智能的应用",
+    "documents": [
+      "机器学习是人工智能的一个重要分支",
+      "人工智能在医疗领域有广泛应用",
+      "编程语言包括 Python、Java 等",
+      "人工智能可以用于自动驾驶汽车"
+    ],
+    "model": "bce-reranker-base_v1",
+    "return_scores": true,
+    "return_documents": true
+  }'
+```
+```bash
+# 返回精简结果（仅返回索引和分数）
+curl http://localhost:9090/v1/rerank \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "介绍人工智能的应用",
+    "documents": [
+      "机器学习是人工智能的一个重要分支",
+      "人工智能在医疗领域有广泛应用",
+      "编程语言包括 Python、Java 等"
+    ],
+    "model": "bge-reranker-v2-m3",
+    "return_scores": true,
+    "return_documents": false
   }'
 ```
 
