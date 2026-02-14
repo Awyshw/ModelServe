@@ -6,6 +6,7 @@ from utils.logger import log
 from utils.exceptions import MemoryError, http_exception_handler
 from api.middleware import add_middlewares
 from api.endpoints import health, episodic, semantic, transient, general
+from api.models import BaseResponse
 
 # 创建FastAPI应用（生产级配置）
 app = FastAPI(

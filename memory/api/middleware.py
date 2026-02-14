@@ -7,7 +7,7 @@ from utils.exceptions import RateLimitExceededError
 from config.settings import settings
 import time
 import uuid
-from typing import Dict
+from typing import Dict, List
 from collections import defaultdict
 
 # 限流存储（生产环境建议用Redis）

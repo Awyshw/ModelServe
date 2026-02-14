@@ -1,4 +1,8 @@
 # core/semantic.py
+"""
+语义记忆模块，实现用户偏好的长期记忆，这里需要添加向量数据库
+TODO:向量数据库用于存储用户偏好的语义嵌入向量，以便进行语义检索 和推荐
+"""
 from core.abstractions import BaseMemory
 from typing import Dict, List, Tuple, Optional, Any
 import numpy as np
@@ -17,6 +21,7 @@ class SemanticMemory(BaseMemory):
         super().__init__(user_id=user_id, storage=storage)
         
         # 使用工厂函数获取嵌入服务（自动适配本地/OpenAI）
+        # TODO: API 的方式需要添加基于阿里云的调用方式
         self.embed_service = get_embedding_service()
         
         # 核心存储：{key: (value, confidence, embedding)}
