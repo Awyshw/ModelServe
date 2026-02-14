@@ -2,24 +2,22 @@
 from core.abstractions import BaseMemory
 from typing import Dict, List, Tuple, Optional, Any
 import numpy as np
-from sentence_transformers import SentenceTransformer
 from utils.logger import log
 from utils.exceptions import StorageError, ValidationError
 from config.settings import settings
+from core.embedding_service import get_embedding_service  # 新增
 
 class SemanticMemory(BaseMemory):
-    """长期记忆：用户偏好存储+语义检索（生产级）"""
+    """长期记忆：用户偏好存储+语义检索（兼容本地/OpenAI嵌入）"""
     def __init__(
         self, 
         user_id: str, 
-        embedding_model_name: str = settings.SEMANTIC_EMBED_MODEL,
         storage: Optional[Any] = None
     ):
         super().__init__(user_id=user_id, storage=storage)
-        self.embedding_model_name = embedding_model_name
         
-        # 懒加载嵌入模型（首次使用时初始化，减少启动时间）
-        self._embed_model: Optional[SentenceTransformer] = None
+        # 使用工厂函数获取嵌入服务（自动适配本地/OpenAI）
+        self.embed_service = get_embedding_service()
         
         # 核心存储：{key: (value, confidence, embedding)}
         self.preferences: Dict[str, Tuple[str, float, np.ndarray]] = {}
@@ -27,23 +25,15 @@ class SemanticMemory(BaseMemory):
         # 加载持久化数据
         if self.storage:
             self._load_from_storage()
-        log.debug(f"SemanticMemory初始化成功，user_id={user_id}，模型={embedding_model_name}")
-
-    @property
-    def embed_model(self) -> SentenceTransformer:
-        """懒加载嵌入模型"""
-        if self._embed_model is None:
-            try:
-                log.info(f"加载嵌入模型：{self.embedding_model_name}")
-                self._embed_model = SentenceTransformer(self.embedding_model_name)
-            except Exception as e:
-                log.error(f"嵌入模型加载失败：{str(e)}", exc_info=True)
-                raise StorageError(f"语义模型初始化失败：{str(e)}")
-        return self._embed_model
+        log.debug(
+            f"SemanticMemory初始化成功，user_id={user_id}，"
+            f"嵌入模式：{settings.EMBEDDING_MODE}，"
+            f"向量维度：{self.embed_service.get_dimension()}"
+        )
 
     def add(self, key: str, value: str, **kwargs) -> None:
         """
-        添加/更新用户偏好
+        添加/更新用户偏好（兼容本地/OpenAI嵌入）
         :param key: 偏好键
         :param value: 偏好值
         :param kwargs: confidence=float - 置信度(0-1)
@@ -59,9 +49,9 @@ class SemanticMemory(BaseMemory):
             if not isinstance(confidence, float) or not (0.0 <= confidence <= 1.0):
                 raise ValidationError("置信度必须在0.0-1.0之间")
             
-            # 生成语义嵌入向量
+            # 生成语义嵌入向量（统一调用抽象接口）
             embed_text = f"{key}:{value}"
-            embedding = self.embed_model.encode(embed_text, convert_to_numpy=True)
+            embedding = self.embed_service.generate_embedding(embed_text)
             
             with self.lock:
                 self.preferences[key] = (value, confidence, embedding)
@@ -77,7 +67,7 @@ class SemanticMemory(BaseMemory):
 
     def get(self, key: Optional[str] = None, **kwargs) -> List[Dict[str, Any]]:
         """
-        获取偏好（精确查询/语义检索）
+        获取偏好（精确查询/语义检索，兼容两种嵌入模式）
         :param key: 精确键名（None则语义检索）
         :param kwargs: query=str - 检索词；threshold=float - 相似度阈值
         :return: 偏好列表（带相似度/置信度）
@@ -118,8 +108,8 @@ class SemanticMemory(BaseMemory):
                     log.debug(f"返回所有偏好，user_id={self.user_id}，共{len(result)}条")
                     return result
                 
-                # 3. 执行语义检索
-                query_embed = self.embed_model.encode(query, convert_to_numpy=True)
+                # 3. 执行语义检索（统一相似度计算）
+                query_embed = self.embed_service.generate_embedding(query)
                 matches = []
                 
                 for pref_key, (value, confidence, embed) in self.preferences.items():
@@ -169,7 +159,7 @@ class SemanticMemory(BaseMemory):
 
     @staticmethod
     def _cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
-        """计算余弦相似度（生产级：处理零向量）"""
+        """计算余弦相似度（兼容所有向量维度）"""
         norm1 = np.linalg.norm(vec1)
         norm2 = np.linalg.norm(vec2)
         

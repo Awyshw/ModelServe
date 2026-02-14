@@ -1,5 +1,5 @@
 # config/settings.py
-from pydantic import Field, validator
+from pydantic import Field, SecretStr, validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional, Literal
 import os
@@ -15,6 +15,21 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     RELOAD: bool = False  # 生产环境关闭热重载
+
+    # 嵌入服务配置（核心新增）
+    EMBEDDING_MODE: Literal["local", "openai"] = "local"  # 切换本地/OpenAI模式
+    EMBEDDING_CACHE_ENABLED: bool = True  # 嵌入向量缓存（避免重复计算）
+    EMBEDDING_CACHE_TTL: int = 3600  # 缓存有效期（秒）
+
+    # 本地嵌入模型配置
+    LOCAL_EMBED_MODEL: str = "bge-m3"  # 本地嵌入模型
+
+    # OpenAI Embedding配置
+    OPENAI_API_KEY: Optional[SecretStr] = Field(default=None, description="OpenAI API密钥")
+    OPENAI_EMBED_MODEL: str = "bge-m3"  # OpenAI嵌入模型
+    OPENAI_API_BASE: Optional[str] = Field(default=None, description="自定义OpenAI API端点（如代理）")
+    OPENAI_API_TIMEOUT: int = 30  # API超时时间（秒）
+    OPENAI_MAX_RETRIES: int = 3  # API重试次数
     
     # 记忆模块配置
     EPISODIC_MAX_WINDOW: int = 20  # 短期记忆最大窗口
@@ -50,6 +65,13 @@ class Settings(BaseSettings):
     def validate_storage_path(cls, v):
         """确保存储目录存在"""
         os.makedirs(v, exist_ok=True)
+        return v
+
+    @validator("OPENAI_API_KEY")
+    def validate_openai_key(cls, v, values):
+        """当使用OpenAI模式时，必须配置API Key"""
+        if values.get("EMBEDDING_MODE") == "openai" and not v:
+            raise ValueError("使用OpenAI嵌入模式时，必须配置OPENAI_API_KEY")
         return v
 
 # 全局配置实例
