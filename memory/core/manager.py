@@ -47,9 +47,9 @@ class MemoryManager:
             if settings.STORAGE_TYPE == "redis":
                 return RedisStorage(redis_url=settings.REDIS_URL)
             elif settings.STORAGE_TYPE == "leveldb":
-                return LevelDBStorage(storage_path=settings.STORAGE_PATH)
+                return LevelDBStorage(storage_path=f"{settings.STORAGE_PATH}/{settings.STORAGE_TYPE}")
             else:  # 默认JSON存储
-                return JsonStorage(storage_path=settings.STORAGE_PATH)
+                return JsonStorage(storage_path=f"{settings.STORAGE_PATH}/{settings.STORAGE_TYPE}")
         except Exception as e:
             log.error(f"存储后端初始化失败，降级为JSON存储：{str(e)}")
             return JsonStorage(storage_path=settings.STORAGE_PATH)
@@ -222,3 +222,11 @@ class MemoryManager:
         except Exception as e:
             log.error(f"清空记忆失败，user_id={self.user_id}：{str(e)}")
             raise StorageError(f"清空记忆失败：{str(e)}")
+        
+
+# ------------------------------
+if __name__ == "__main__":
+    mm = MemoryManager(user_id="test_user")
+    user_input = "你好，你知道世界上最高山峰吗？"
+    ai_response = "当然知道，世界上最高山峰是珠穆朗玛峰，它位于中国和尼泊尔边境，海拔8848米。"
+    mm.add_dialogue_turn(user_input, ai_response)

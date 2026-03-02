@@ -4,13 +4,36 @@ from typing import List, Optional, Dict, Any
 import numpy as np
 import time
 import hashlib
-from functools import lru_cache
+from functools import lru_cache, wraps
 from utils.logger import log
 from utils.exceptions import StorageError, ValidationError
 from config.settings import settings
 
 # 缓存配置（生产级：小量缓存用LRU，大量建议用Redis）
 CACHE_MAX_SIZE = 1000 if settings.EMBEDDING_CACHE_ENABLED else 0
+
+def retry_decorator(max_retries: int):
+    """通用重试装饰器（指数退避）- 解决self参数问题"""
+    def decorator(func):
+        @wraps(func)  # 保留原函数元信息
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    retries += 1
+                    if retries >= max_retries:
+                        raise StorageError(f"调用失败，已重试{max_retries}次：{str(e)}")
+                    wait_time = 2 ** retries  # 指数退避：2,4,8秒
+                    log.warning(
+                        f"调用失败（重试{retries}/{max_retries}）：{str(e)}，"
+                        f"等待{wait_time}秒后重试"
+                    )
+                    time.sleep(wait_time)
+            raise StorageError(f"调用失败，已重试{max_retries}次")
+        return wrapper
+    return decorator
 
 class BaseEmbeddingService(ABC):
     """嵌入服务抽象接口（统一本地/OpenAI调用）"""
@@ -144,26 +167,8 @@ class OpenAIEmbeddingService(BaseEmbeddingService):
             log.error(f"OpenAI客户端初始化失败：{str(e)}", exc_info=True)
             raise StorageError(f"OpenAI客户端初始化失败：{str(e)}")
 
-    def _retry_decorator(self, func):
-        """重试装饰器（指数退避）"""
-        def wrapper(*args, **kwargs):
-            retries = 0
-            while retries < self.max_retries:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    retries += 1
-                    wait_time = 2 ** retries  # 指数退避：2,4,8秒
-                    log.warning(
-                        f"OpenAI API调用失败（重试{retries}/{self.max_retries}）：{str(e)}，"
-                        f"等待{wait_time}秒后重试"
-                    )
-                    time.sleep(wait_time)
-            raise StorageError(f"OpenAI API调用失败，已重试{self.max_retries}次")
-        return wrapper
-
     @lru_cache(maxsize=CACHE_MAX_SIZE)
-    @_retry_decorator
+    @retry_decorator(max_retries=settings.OPENAI_MAX_RETRIES)
     def generate_embedding(self, text: str) -> np.ndarray:
         """生成OpenAI嵌入向量（带缓存+重试）"""
         try:
@@ -206,6 +211,7 @@ class OpenAIEmbeddingService(BaseEmbeddingService):
             log.error(f"OpenAI嵌入生成失败：{str(e)}", exc_info=True)
             raise StorageError(f"OpenAI嵌入生成失败：{str(e)}")
 
+    @retry_decorator(max_retries=settings.OPENAI_MAX_RETRIES)
     def generate_embeddings(self, texts: List[str]) -> List[np.ndarray]:
         """批量生成OpenAI嵌入向量"""
         try:

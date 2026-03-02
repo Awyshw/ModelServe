@@ -1,15 +1,18 @@
 # storage/leveldb_storage.py
-from memory.storage.base import BaseStorage
+from storage.base import BaseStorage
+import os
 import plyvel
 import json
 from typing import Any, Optional
 from utils.logger import log
-from memory.utils.exceptions import StorageError
+from utils.exceptions import StorageError
 
 class LevelDBStorage(BaseStorage):
     """LevelDB存储后端（生产级）"""
     def __init__(self, storage_path: str = "./leveldb_data", **kwargs):
         self.storage_path = storage_path
+        if not os.path.exists(self.storage_path):
+            os.makedirs(self.storage_path)
         self.db = None
         self._init_db()
 
