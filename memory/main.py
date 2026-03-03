@@ -5,7 +5,7 @@ from config.settings import settings
 from utils.logger import log
 from utils.exceptions import MemoryError, http_exception_handler
 from api.middleware import add_middlewares
-from api.endpoints import health, episodic, semantic, transient, general
+from api.endpoints import business_chat, health, episodic, semantic, transient, general
 from api.models import BaseResponse
 
 # 创建FastAPI应用（生产级配置）
@@ -22,6 +22,7 @@ app = add_middlewares(app)
 
 # 注册路由
 app.include_router(health.router)
+app.include_router(business_chat.router)
 app.include_router(episodic.router)
 app.include_router(semantic.router)
 app.include_router(transient.router)

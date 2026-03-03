@@ -46,3 +46,15 @@ class HealthCheckResponse(BaseModel):
     version: str
     storage: bool
     timestamp: datetime
+
+class ChatRequest(BaseModel):
+    user_id: str  # 用户唯一标识
+    user_input: str  # 用户输入
+    session_id: Optional[str] = None  # 会话ID（可选）
+
+class ChatResponse(BaseModel):
+    response: str  # 大模型回复
+    context_used: List[Dict[str, Any]]  # 使用的上下文记忆
+    preferences_used: List[Dict[str, Any]]  # 使用的用户偏好
+    extracted_preferences: List[Dict[str, Any]]
+    timestamp: str

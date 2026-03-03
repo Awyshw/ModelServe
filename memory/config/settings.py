@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     OPENAI_API_BASE: Optional[str] = Field(default=None, description="自定义OpenAI API端点（如代理）")
     OPENAI_API_TIMEOUT: int = 30  # API超时时间（秒）
     OPENAI_MAX_RETRIES: int = 3  # API重试次数
+
+    # OpenAI LLM配置
+    LLM_MODEL_NAME: str = "gpt-3.5-turbo"  # LLM模型名称
+    LLM_API_KEY: Optional[SecretStr] = Field(default=None, description="OpenAI API密钥")
+    LLM_API_BASE_URL: Optional[str] = Field(default=None, description="自定义OpenAI API端点（如代理）")
+    LLM_API_TIMEOUT: int = 30  # API超时时间（秒）
+    LLM_MAX_RETRIES: int = 3  # API重试次数
+    LLM_TEMPERATURE: float = 0.7  # LLM生成温度
     
     # 记忆模块配置
     EPISODIC_MAX_WINDOW: int = 20  # 短期记忆最大窗口

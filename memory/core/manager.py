@@ -1,4 +1,5 @@
 from core.episodic import EpisodicMemory
+from core.preference_extractor import PreferenceExtractor
 from core.semantic import SemanticMemory
 from core.transient import TransientMemory
 from storage.base import BaseStorage
@@ -36,6 +37,7 @@ class MemoryManager:
         self.user_id = user_id
         self.storage = self._init_storage()
         self._init_memory_components()
+        self.preference_extractor = PreferenceExtractor()
         log.info(
             f"MemoryManager初始化成功，user_id={user_id}，"
             f"嵌入模式={settings.EMBEDDING_MODE}，存储类型={settings.STORAGE_TYPE}"
@@ -72,6 +74,58 @@ class MemoryManager:
         
         # 3. 临时记忆（无改动）
         self.transient = TransientMemory(user_id=self.user_id)
+    
+    # 新增：自动提取并保存偏好
+    @retry(max_retries=2)
+    def auto_extract_and_save_preferences(self) -> List[Dict[str, Any]]:
+        """
+        自动从对话上下文中提取偏好并保存到长期记忆
+        :return: 新增/更新的偏好列表
+        """
+        try:
+            # 1. 获取最近10轮对话上下文
+            context = self.get_context(last_n=10)
+            if not context:
+                log.debug(f"无对话上下文，跳过偏好提取：user_id={self.user_id}")
+                return []
+            
+            # 2. 提取偏好
+            new_preferences = self.preference_extractor.extract_from_context(context)
+            if not new_preferences:
+                return []
+            
+            # 3. 获取已有偏好（用于去重）
+            existing_preferences = self.retrieve_preferences()
+            
+            # 4. 去重
+            unique_preferences = self.preference_extractor.deduplicate_preferences(
+                new_preferences=new_preferences,
+                existing_preferences=existing_preferences
+            )
+            if not unique_preferences:
+                return []
+            
+            # 5. 保存到长期记忆
+            saved_preferences = []
+            for pref in unique_preferences:
+                self.add_user_preference(
+                    key=pref.key,
+                    value=pref.value,
+                    confidence=pref.confidence
+                )
+                saved_preferences.append({
+                    "key": pref.key,
+                    "value": pref.value,
+                    "confidence": pref.confidence,
+                    "source": pref.source_text
+                })
+            
+            log.info(f"自动保存{len(saved_preferences)}个偏好：user_id={self.user_id}")
+            return saved_preferences
+        
+        except Exception as e:
+            log.error(f"自动提取偏好失败：user_id={self.user_id}，错误：{str(e)}")
+            return []
 
     # ------------------------------
     # 短期记忆操作（带重试+输入验证）
@@ -90,6 +144,10 @@ class MemoryManager:
             "tags": tags or []
         })
         log.debug(f"添加对话轮次成功，user_id={self.user_id}")
+
+        context_count = len(self.get_context(last_n=settings.EPISODIC_MAX_WINDOW))
+        if context_count % 3 == 0:  # 可配置提取频率
+            self.auto_extract_and_save_preferences()
 
     @retry(max_retries=2)
     def get_context(self, last_n: int = 10) -> List[Dict[str, Any]]:
