@@ -10,6 +10,7 @@ from utils.logger import log
 from utils.exceptions import StorageError, ValidationError
 from config.settings import settings
 from core.embedding_service import get_embedding_service  # 新增
+from storage.dashvector_storage import DashVectorStorage
 
 class SemanticMemory(BaseMemory):
     """长期记忆：用户偏好存储+语义检索（兼容本地/OpenAI嵌入）"""
@@ -23,6 +24,9 @@ class SemanticMemory(BaseMemory):
         # 使用工厂函数获取嵌入服务（自动适配本地/OpenAI）
         # TODO: API 的方式需要添加基于阿里云的调用方式
         self.embed_service = get_embedding_service()
+
+        # dashvector向量数据库
+        self.ds_storage = DashVectorStorage()
         
         # 核心存储：{key: (value, confidence, embedding)}
         self.preferences: Dict[str, Tuple[str, float, np.ndarray]] = {}

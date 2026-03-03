@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     LLM_API_TIMEOUT: int = 30  # API超时时间（秒）
     LLM_MAX_RETRIES: int = 3  # API重试次数
     LLM_TEMPERATURE: float = 0.7  # LLM生成温度
+
+    # DashVector 配置
+    DASHVECTOR_API_KEY: Optional[SecretStr] = Field(default=None, description="DashVector API密钥")
+    DASHVECTOR_ENDPOINT: str = "https://api.dashvector.com"  # DashVector API端点
+    DASHVECTOR_COLLECTION: str = "default"  # DashVector集合名称
+    DASHVECTOR_DIMENSION: int = 1024  # DashVector向量维度
     
     # 记忆模块配置
     EPISODIC_MAX_WINDOW: int = 20  # 短期记忆最大窗口
