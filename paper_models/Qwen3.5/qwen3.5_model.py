@@ -136,8 +136,6 @@ class GatedDeltaNet(nn.Module):
         attn_output = attn_output / z
 
         return attn_output
-        
-        return attn_output
     
     def forward(self, x, mask=None):
         """
